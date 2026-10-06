@@ -17,7 +17,14 @@ def demonstrate_numpy_operations():
     print(f"Matrix:\n{matrix}")
     print(f"Matrix shape: {matrix.shape}")
 
+# Add this at the end of hello.py
+def farewell(name):
+    """Say goodbye"""
+    return f"Goodbye, {name}! Keep coding!"
+
+# Update main to use it
 def main():
+    print("=== Python with NumPy ===")
     user_name = input("What's your name? ")
     message = greet(user_name)
     print(message)
@@ -25,9 +32,9 @@ def main():
     demonstrate_numpy_operations()
 
     # Do a simple calculation
-    num1 = float(input("Enter first number: "))
+    num1 = float(input("\nEnter first number: "))
     num2 = float(input("Enter second number: "))
     print(f"{num1} + {num2} = {num1 + num2}")
 
-if __name__ == "__main__":
-    main()
+    # New farewell message
+    print(f"\n{farewell(user_name)}")
