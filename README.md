@@ -13,7 +13,16 @@ python main.py --retrain           # test on 2026, then train the final models (
 streamlit run app/main.py          # open the app
 ```
 
-Competition day: paste the API call you're given:
+**Official competition script** (forecasts Nov 15-17 from Nov 14 and prints the RMSE):
+
+```bash
+python competition.py
+```
+
+It uses `models/weather_model_competition.pkl`, which was trained only on data **before
+2026-11-14**, so it has never seen the starting day or the three scored days.
+
+Practice on any other dates or API call with:
 
 ```bash
 python compete.py --url "https://...open-meteo.com/..." --rolling
@@ -32,9 +41,9 @@ what actually happened. `--rolling` also starts a forecast from every hour and a
 1. **Data:** 95,000 hourly observations (Jan 2016 to Nov 2026) of 15 weather variables from the
    Open-Meteo archive API. Wind direction is converted to east-west / north-south components.
 2. **Features (84):** for each of 16 variables, the current value, its change over the last 1, 3
-   and 24 hours, and its 24-hour average, plus the hour of day and day of year as sine/cosine.
+   and 23 hours, and its 24-hour average, plus the hour of day and day of year as sine/cosine.
 3. **Model:** one XGBoost regressor per variable predicts how much it changes in the next hour.
-4. **Autoregressive forecast:** the prediction is appended to the 25-hour window, the oldest
+4. **Autoregressive forecast:** the prediction is appended to the 24-hour window, the oldest
    hour is dropped, and the model predicts again, 72 times.
 
 The **backup model** skips the two soil variables, because Open-Meteo's *forecast* API returns them
@@ -42,15 +51,28 @@ empty. `compete.py` switches to it automatically.
 
 ## Results
 
-Temperature RMSE (°C) for 634 forecasts started every 12 hours in 2026, data the model never
-trained on (models trained on 2016-2025):
+### Competition score: **3.8791 °C** RMSE
+
+From `python competition.py`: a 72-hour autoregressive forecast for Nov 15-17, 2026, starting from
+the 24 hours of Nov 14, scored against the real temperatures. By day: 1.88 °C (Nov 15),
+3.65 °C (Nov 16), 5.32 °C (Nov 17). The model ran too cold and missed a warm-up.
+
+The competition model is the **average of the 16-variable and no-soil models**, each trained only
+on data before 2026-11-14. Averaging was chosen on the 2025 validation year (4.33 °C vs 4.49 and
+4.50 °C for the single models), never on the competition days.
+
+### Test year
+
+Temperature RMSE (°C) for 634 forecasts started every 12 hours in 2026, data the models never
+trained on (trained on 2016-2025):
 
 | Model | 1 h | 6 h | 24 h | 48 h | 72 h | Avg over 72 h |
 |---|---|---|---|---|---|---|
 | Week 5 model (2 weeks of Berlin data, 3 features) | 7.51 | 9.46 | 11.67 | 12.24 | 12.21 | 11.23 |
 | Week 5 features, 2016-2025 East Lansing data | 0.95 | 3.34 | 4.32 | 5.17 | 5.22 | 4.82 |
-| **Main model (16 variables, 84 features)** | **0.63** | **2.28** | **3.67** | **4.88** | **5.29** | **4.33** |
-| Backup model (no soil variables) | 0.61 | 2.30 | 3.75 | 5.11 | 5.79 | 4.71 |
+| Main model (16 variables, 84 features) | 0.63 | 2.23 | 3.79 | 4.93 | 5.78 | 4.54 |
+| Backup model (no soil variables) | 0.61 | 2.25 | 3.69 | 4.89 | 5.57 | 4.42 |
+| **Average of both (competition model)** | **0.61** | **2.22** | **3.65** | **4.73** | **5.32** | **4.33** |
 | Baseline: temperature stays the same | 1.46 | 6.73 | 4.62 | 5.85 | 6.07 | 6.48 |
 | Baseline: yesterday repeats | 4.55 | 4.93 | 4.62 | 5.85 | 6.07 | 5.73 |
 
@@ -59,7 +81,9 @@ trained on (models trained on 2016-2025):
 | Change | Effect on 72-hour RMSE | Kept? |
 |---|---|---|
 | Right location (East Lansing instead of Berlin) and 11 years instead of 2 weeks | 11.2 → 4.8 °C | ✅ |
-| All 15 variables + lag / change / average features | 4.8 → 4.3 °C | ✅ |
+| All 15 variables + lag / change / average features | 4.8 → 4.5 °C | ✅ |
+| Averaging the 16-variable and no-soil models | 4.5 → 4.3 °C | ✅ |
+| 24-hour history instead of 25 (the competition allows one day) | 4.3 → 4.5 °C for the single model | required |
 | Fixing the validation leak (train and validation used to be the same rows) | an honest score | ✅ |
 | Feature selection (fewer variables or features) | every smaller set did worse | ❌ |
 | Hyperparameter tuning (30-setting random search) | best one-hour settings did *worse* at 72 hours | ❌ |
@@ -97,6 +121,7 @@ test. After choosing, the saved models were refit on everything through the late
 | `src/evaluate.py` | RMSE by hour ahead, baselines, error ranges and chance of rain |
 | `src/planner.py` | comfort scores, clothing advice, daylight, best time slots |
 | `main.py` | full pipeline |
-| `compete.py` | competition runner |
+| `competition.py` | official competition script (TODOs filled in) |
+| `compete.py` | practice runner for any dates or API call |
 | `app/main.py` | Streamlit app |
 | `reports/` | test results, selection and tuning results, feature importance chart |

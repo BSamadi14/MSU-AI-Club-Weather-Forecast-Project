@@ -14,10 +14,9 @@ from xgboost import XGBRegressor
 
 from src.data_processor import make_supervised, make_windows, split_by_year
 from src.evaluate import score
-from src.features import WINDOW, clip_values, window_features
+from src.features import FEATURE_SUFFIXES, WINDOW, clip_values, window_features
 
 DEFAULT_PARAMS = {"n_estimators": 300, "learning_rate": 0.1, "max_depth": 6}
-FEATURE_SUFFIXES = ["_diff1", "_diff3", "_diff24", "_mean24"]
 
 
 def train_model(X, Y, base_vars, features, params=None):
@@ -32,7 +31,7 @@ def train_model(X, Y, base_vars, features, params=None):
 ROLLOUT_STEPS = (1, 2, 3, 4, 6, 8, 12, 16, 24, 36, 48, 71)
 
 
-def rollout_training_data(bundle, df, last_year, every_hours=12, keep_steps=ROLLOUT_STEPS):
+def rollout_training_data(bundle, df, cutoff, every_hours=12, keep_steps=ROLLOUT_STEPS):
     """Extra training rows made from the model's *own* forecasts (the DAgger idea).
 
     A model trained only on real history never sees the slightly-wrong windows it creates
@@ -42,8 +41,8 @@ def rollout_training_data(bundle, df, last_year, every_hours=12, keep_steps=ROLL
     model's current value". Training on these rows teaches the model to steer back toward
     reality instead of drifting.
 
-    Only uses start points whose whole rollout ends in or before `last_year`, so no
-    validation or test data leaks in.
+    Only uses start points whose whole rollout ends before `cutoff` (a UTC timestamp), so
+    no validation or test data leaks in.
     """
     base_vars, features, model = bundle["base_vars"], bundle["features"], bundle["model"]
     windows, times = make_windows(df, base_vars)
@@ -52,7 +51,7 @@ def rollout_training_data(bundle, df, last_year, every_hours=12, keep_steps=ROLL
     keep = set(keep_steps)
 
     idx = np.arange(0, len(windows) - max_step - 1, every_hours)
-    idx = idx[(times[idx] + pd.Timedelta(hours=max_step + 1)).year <= last_year]
+    idx = idx[times[idx] + pd.Timedelta(hours=max_step + 1) < cutoff]
     start_times = times[idx]
     w = windows[idx].copy()
 
@@ -72,12 +71,12 @@ def rollout_training_data(bundle, df, last_year, every_hours=12, keep_steps=ROLL
     return pd.concat(X_parts, ignore_index=True), pd.concat(Y_parts, ignore_index=True)
 
 
-def train_with_rollouts(X, Y, df, base_vars, features, last_year, params=None, rounds=1):
+def train_with_rollouts(X, Y, df, base_vars, features, cutoff, params=None, rounds=1):
     """Train normally, then retrain `rounds` times adding rows from the latest model's rollouts."""
     bundle = train_model(X, Y, base_vars, features, params)
     X_extra, Y_extra = [], []
     for _ in range(rounds):
-        X_r, Y_r = rollout_training_data(bundle, df, last_year)
+        X_r, Y_r = rollout_training_data(bundle, df, cutoff)
         X_extra.append(X_r)
         Y_extra.append(Y_r)
         bundle = train_model(pd.concat([X, *X_extra], ignore_index=True),

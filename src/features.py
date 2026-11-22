@@ -3,7 +3,7 @@
 The model never sees a single row on its own. It sees a *window* of the last WINDOW hours
 of observations, shaped (n_samples, WINDOW, n_base_vars), oldest hour first. From that
 window we build features such as the current value, how much a variable changed in the
-last 1 / 3 / 24 hours and its 24-hour average.
+last 1 / 3 / 23 hours and its 24-hour average.
 
 Using one function (window_features) everywhere guarantees that the features the model
 was trained on are computed exactly the same way when we forecast autoregressively.
@@ -11,8 +11,11 @@ was trained on are computed exactly the same way when we forecast autoregressive
 import numpy as np
 import pandas as pd
 
-# Current hour + the 24 hours before it
-WINDOW = 25
+# The current hour and the 23 before it: one full day. The competition script only allows
+# downloading a single day (24 hours) as history, so the model must work from exactly that.
+WINDOW = 24
+# Names of the engineered features added for every variable (see window_features)
+FEATURE_SUFFIXES = ["_diff1", "_diff3", f"_diff{WINDOW - 1}", f"_mean{WINDOW}"]
 
 # Every variable the model can use as an input *and* has to forecast for the next hour.
 # Wind direction (0-360°) is circular (359° is next to 1°), which trees handle badly,
@@ -59,10 +62,11 @@ def window_features(windows, times, base_vars):
     for j, var in enumerate(base_vars):
         x = windows[:, :, j]
         feats[var] = x[:, -1]
-        feats[f"{var}_diff1"] = x[:, -1] - x[:, -2]
-        feats[f"{var}_diff3"] = x[:, -1] - x[:, -4]
-        feats[f"{var}_diff24"] = x[:, -1] - x[:, 0]
-        feats[f"{var}_mean24"] = x[:, 1:].mean(axis=1)
+        diff1, diff3, diff_window, mean_window = FEATURE_SUFFIXES
+        feats[var + diff1] = x[:, -1] - x[:, -2]
+        feats[var + diff3] = x[:, -1] - x[:, -4]
+        feats[var + diff_window] = x[:, -1] - x[:, 0]  # change over the whole window
+        feats[var + mean_window] = x.mean(axis=1)       # average over the whole window
 
     # Cyclical time features so that 23:00 is close to 00:00 and Dec 31 to Jan 1
     hour = np.asarray(times.hour)

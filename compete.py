@@ -17,7 +17,7 @@ Or a CSV with a "date" column (UTC) plus the weather variables:
 
 Choosing what to forecast
 -------------------------
-By default the first 25 hours are used as history and every remaining hour is forecast.
+By default the first 24 hours are used as history and every remaining hour is forecast.
     --forecast-from "2026-11-15 00:00"   last observed hour (UTC) to forecast from
     --hours 24                          how many hours to forecast
     --rolling                           also start a forecast from every hour and report the

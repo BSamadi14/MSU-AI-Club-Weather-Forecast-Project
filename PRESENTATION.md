@@ -22,17 +22,19 @@ Start the app beforehand: `source .venv/bin/activate`, then `streamlit run app/m
 4. Open **How the scores work** if asked how scoring works.
 
 ## 4. How it works (45 s)
-- 11 years of hourly East Lansing data, 15 variables, 84 features (current values, 1/3/24-hour
-  changes, 24-hour averages, time of day and year).
+- 11 years of hourly East Lansing data, 15 variables, 84 features from the last 24 hours (current
+  values, 1/3/23-hour changes, 24-hour averages, time of day and year).
 - XGBoost predicts the next hour's *change* for every variable, then feeds its prediction back in,
-  72 times (autoregressive).
+  72 times (autoregressive). Two versions (with and without soil data) forecast separately
+  and their forecasts are averaged.
 - The ranges come from the model's *real* mistakes: it was run from every hour of 2026 (never
   trained on) and compared with what happened, per season. On held-out weeks the "80%" range held
   the real temperature 77-80% of the time.
 
 ## 5. Results (30 s)
+- **Competition score: 3.8791 °C** (Nov 15-17). The model was trained only on data before Nov 14.
 - 2026 test, average temperature error over 72 hours: **4.33 °C**, down from **11.2 °C** for my
-  Week 5 model. First hour: **0.63 °C**. Next day: **3.7 °C**.
+  Week 5 model. First hour: **0.61 °C**. Next day: **3.65 °C**.
 - Beats "repeat yesterday" (5.7 °C) and "nothing changes" (6.5 °C).
 
 ## 6. What I learned (20 s)

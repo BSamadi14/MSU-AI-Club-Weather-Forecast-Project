@@ -46,7 +46,18 @@ def predict_autoregressive(bundle, history, steps=72):
 
     Returns a DataFrame with one row per forecast hour, a "time" column and one column per
     forecast variable (temperature_2m, relative_humidity_2m, ...).
+
+    An ensemble bundle ({"members": [bundle, ...]}) runs each member's own 72-hour forecast
+    and averages them; only variables every member forecasts are kept.
     """
+    if "members" in bundle:
+        forecasts = [predict_autoregressive(m, history, steps) for m in bundle["members"]]
+        shared = [c for c in forecasts[0].columns if c != "time" and all(c in f for f in forecasts)]
+        averaged = forecasts[0][["time"]].copy()
+        for column in shared:
+            averaged[column] = np.mean([f[column].to_numpy() for f in forecasts], axis=0)
+        return averaged
+
     history = prepare_base(history).sort_values("date").tail(WINDOW)
     if len(history) < WINDOW:
         raise ValueError(f"Need {WINDOW} hours of history, got {len(history)}")

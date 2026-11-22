@@ -59,7 +59,7 @@ def get_model(model_file="weather_model.pkl"):
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def load_current_weather():
-    """Download the last 25 hours of observations from Open-Meteo (cached for 1 hour)."""
+    """Download the last 24 hours of observations from Open-Meteo (cached for 1 hour)."""
     return get_current_weather()
 
 
@@ -307,9 +307,9 @@ def show_about():
     with st.expander("How does this work?"):
         st.markdown(
             """
-            1. The app downloads the last 25 hours of observations from the Open-Meteo archive API.
+            1. The app downloads the last 24 hours of observations from the Open-Meteo archive API.
             2. From that window it builds features: the current value of each weather variable, how much it
-               changed over the last 1, 3 and 24 hours, its 24-hour average, and the time of day and year.
+               changed over the last 1, 3 and 23 hours, its 24-hour average, and the time of day and year.
             3. XGBoost models (one per variable, wrapped in a `MultiOutputRegressor`) predict how much each
                variable will change in the next hour. They were trained on hourly East Lansing data
                from 2016 to the most recent week.
